@@ -1,5 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { IMAGE_TYPES, cleanSearch, isUuid, parsePrice, type Listing, type ListingDraft } from "./listings";
+import { IMAGE_TYPES, cleanSearch, escapeLike, isUuid, parsePrice, type Listing, type ListingDraft } from "./listings";
 
 // NEXT_PUBLIC values are inlined at build time; they must be referenced literally.
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -7,7 +7,7 @@ const key =
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 export const IMAGE_BUCKET = "listing-images";
-const COLUMNS = "id, title, description, price, category, seller_email, location, image_path, created_at";
+const COLUMNS = "id, title, description, price, category, seller_email, location, image_path, created_at, sold_at";
 
 export const supabase: SupabaseClient | null =
   url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
@@ -26,6 +26,18 @@ export async function getListings(filter: { category?: string; q?: string } = {}
   const q = cleanSearch(filter.q ?? "");
   if (q) query = query.or(`title.ilike.%${q}%,description.ilike.%${q}%,location.ilike.%${q}%`);
   const { data, error } = await query;
+  if (error) throw error;
+  return data.map(toListing);
+}
+
+/** Listings whose seller email matches (case-insensitive, exact — wildcards escaped). */
+export async function getListingsBySeller(email: string): Promise<Listing[]> {
+  const pattern = escapeLike(email.trim());
+  const { data, error } = await db()
+    .from("listings")
+    .select(COLUMNS)
+    .ilike("seller_email", pattern)
+    .order("created_at", { ascending: false });
   if (error) throw error;
   return data.map(toListing);
 }

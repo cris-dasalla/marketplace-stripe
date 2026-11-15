@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { CategorySidebar, CategoryTabs } from "@/components/category-nav";
 import { ListingCard } from "@/components/listing-card";
 import { categoryName, isCategory } from "@/lib/categories";
+import { normalizeEmail } from "@/lib/payments";
+import { getPayableEmails } from "@/lib/server/sellers";
 import { getListings, supabase } from "@/lib/supabase";
 
 type SearchParams = Promise<{ category?: string | string[]; q?: string | string[] }>;
@@ -75,7 +77,10 @@ async function Results({ searchParams }: { searchParams: SearchParams }) {
     return <p role="alert">Supabase isn&apos;t configured. Copy .env.example to .env.local and add your keys.</p>;
   }
 
-  const listings = await getListings({ category, q });
+  const [listings, payable] = await Promise.all([
+    getListings({ category, q }),
+    getPayableEmails().catch(() => new Set<string>()),
+  ]);
   const heading = q ? `Results for “${q}”` : category ? categoryName(category) : "Today's picks";
 
   return (
@@ -116,7 +121,7 @@ async function Results({ searchParams }: { searchParams: SearchParams }) {
         <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
           {listings.map((listing) => (
             <li key={listing.id}>
-              <ListingCard listing={listing} />
+              <ListingCard listing={listing} payable={payable.has(normalizeEmail(listing.seller_email))} />
             </li>
           ))}
         </ul>

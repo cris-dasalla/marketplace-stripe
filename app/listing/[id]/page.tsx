@@ -5,11 +5,13 @@ import { ArrowLeft, Mail, MapPin, Tag } from "lucide-react";
 import { categoryName } from "@/lib/categories";
 import { formatPrice, listedAgo } from "@/lib/listings";
 import { getListing, imageUrl } from "@/lib/supabase";
+import { BuySection } from "./buy-section";
 import { MessageForm } from "./message-form";
 
 type Params = Promise<{ id: string }>;
+type SearchParams = Promise<{ checkout?: string }>;
 
-export default function ListingPage({ params }: { params: Params }) {
+export default function ListingPage({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-5">
       <Link href="/" className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
@@ -17,14 +19,14 @@ export default function ListingPage({ params }: { params: Params }) {
         Back to Marketplace
       </Link>
       <Suspense fallback={<DetailSkeleton />}>
-        <ListingDetail params={params} />
+        <ListingDetail params={params} searchParams={searchParams} />
       </Suspense>
     </div>
   );
 }
 
-async function ListingDetail({ params }: { params: Params }) {
-  const { id } = await params;
+async function ListingDetail({ params, searchParams }: { params: Params; searchParams: SearchParams }) {
+  const [{ id }, { checkout }] = await Promise.all([params, searchParams]);
   const listing = await getListing(id);
   if (!listing) notFound();
 
@@ -48,6 +50,8 @@ async function ListingDetail({ params }: { params: Params }) {
             {listing.location && ` in ${listing.location}`}
           </p>
         </header>
+
+        <BuySection listing={listing} cancelled={checkout === "cancelled"} />
 
         <dl className="flex flex-col gap-2 text-[15px]">
           <div className="flex items-center gap-2">

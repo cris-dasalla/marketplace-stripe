@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Plus, Store } from "lucide-react";
+import { BadgeDollarSign, Plus, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function SiteHeader() {
@@ -12,6 +12,14 @@ export function SiteHeader() {
           </span>
           Marketplace
         </Link>
+        <div className="flex items-center gap-2">
+        <Button asChild size="lg" variant="ghost" className="rounded-md px-3 font-semibold">
+          <Link href="/sell">
+            <BadgeDollarSign aria-hidden />
+            <span className="hidden sm:inline">Get paid with Stripe</span>
+            <span className="sm:hidden">Get paid</span>
+          </Link>
+        </Button>
         <Button asChild size="lg" className="rounded-md px-3 font-semibold">
           <Link href="/create">
             <Plus aria-hidden />
@@ -19,6 +27,7 @@ export function SiteHeader() {
             <span className="sm:hidden">Sell</span>
           </Link>
         </Button>
+        </div>
       </div>
     </header>
   );

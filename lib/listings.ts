@@ -31,6 +31,8 @@ export interface Listing {
   location: string;
   image_path: string;
   created_at: string;
+  /** Set by the server when a Stripe payment for this listing completes. */
+  sold_at: string | null;
 }
 
 export interface ListingDraft {
@@ -101,6 +103,11 @@ export function formatPrice(price: number): string {
  */
 export function cleanSearch(q: string): string {
   return q.replace(/[,()%*\\"':.]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+}
+
+/** Escapes LIKE/ILIKE wildcards so an email like "a_b@x.com" matches only itself. */
+export function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (c) => "\\" + c);
 }
 
 /** "just now", "5 minutes ago", "3 hours ago", "2 days ago", "on Nov 3". */
