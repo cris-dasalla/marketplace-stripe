@@ -10,7 +10,7 @@ Built with React 19, Next.js (App Router, Cache Components), TypeScript, Supabas
 
 ```
 Seller: /sell → enter listing email → "Connect with Stripe"
-        → Stripe-hosted Express onboarding → /sell/return (status synced from Stripe)
+        → Stripe-hosted onboarding → /sell/return (status synced from Stripe)
         → every listing with that email now shows Buy Now
 
 Buyer:  listing → "Buy Now" (server action) → Stripe Checkout on the seller's account
@@ -21,6 +21,7 @@ Stripe → POST /api/stripe/webhook (signature-verified)
         account.updated            → sync seller.charges_enabled
 ```
 
+- **Connected accounts.** Sellers get a Stripe account where they are the merchant of record: `controller.fees.payer = account`, `losses.payments = stripe`, full Stripe Dashboard. This is the modern form of a "Standard" account, and the natural fit for direct charges. (The current API rejects the legacy `type: "express"` for platform-liable accounts.)
 - **Direct charges.** The Checkout Session is created *on the seller's connected account* (`stripeAccount`), with `application_fee_amount` set to 10% of the price, so the seller receives the price minus the fee. Price, seller and fee are always read from the database on the server, never from the browser.
 - **Seller identity without login.** Sellers are matched by the email on their listings, as the spec allows. To prevent hijacking: once an email's Stripe account can take payments, the app never issues another onboarding link for it, so nobody else can type that email in and change the payout details. (With real logins, onboarding would sit behind authentication.)
 - **The webhook is the source of truth.** It checks the Stripe signature against the raw body, and handles `checkout.session.completed` (plus `async_payment_succeeded`) and `account.updated`. The sandbox is shared with other candidates, so the handler only accepts a session that:

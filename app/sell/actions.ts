@@ -12,7 +12,7 @@ export type ConnectState =
   | { status: "already-connected"; email: string }
   | { status: "error"; message: string; email: string };
 
-/** Creates (or resumes) a Stripe Express account for this email and sends the seller to Stripe's hosted onboarding. */
+/** Creates (or resumes) a Stripe connected account for this email and sends the seller to Stripe's hosted onboarding. */
 export async function connectWithStripe(_prev: ConnectState, formData: FormData): Promise<ConnectState> {
   const raw = String(formData.get("email") ?? "");
   const email = normalizeEmail(raw);
@@ -27,8 +27,17 @@ export async function connectWithStripe(_prev: ConnectState, formData: FormData)
     if (seller?.charges_enabled) return { status: "already-connected", email };
 
     if (!seller) {
+      // Direct charges → the seller is the merchant: they pay Stripe's fees, Stripe
+      // carries the risk of losses, and they get the full Stripe Dashboard
+      // (the modern equivalent of a "Standard" account; the sandbox rejects the
+      // legacy `type` field for platform-liable accounts).
       const account = await stripe().accounts.create({
-        type: "express",
+        controller: {
+          fees: { payer: "account" },
+          losses: { payments: "stripe" },
+          requirement_collection: "stripe",
+          stripe_dashboard: { type: "full" },
+        },
         email,
         business_type: "individual",
         capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
