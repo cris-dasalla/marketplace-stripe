@@ -4,6 +4,7 @@ import Link from "next/link";
 import { CircleCheck, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/payments";
+import { retryUntil } from "@/lib/retry";
 import { getOrderBySession, recordPaidSession } from "@/lib/server/orders";
 import { getSeller } from "@/lib/server/sellers";
 import { stripe } from "@/lib/server/stripe";
@@ -29,10 +30,15 @@ async function Receipt({ searchParams }: { searchParams: SearchParams }) {
   const seller = listing ? await getSeller(listing.seller_email) : null;
   if (!listing || !seller) return <NotConfirmed />;
 
-  // Verify with Stripe instead of trusting the URL.
-  const session = await stripe()
-    .checkout.sessions.retrieve(sessionId, {}, { stripeAccount: seller.stripe_account_id })
-    .catch(() => null);
+  // Verify with Stripe instead of trusting the URL. Stripe redirects here as soon as
+  // the card is charged; the session reports "paid" a moment later, so re-check briefly.
+  const session = await retryUntil(
+    () =>
+      stripe()
+        .checkout.sessions.retrieve(sessionId, {}, { stripeAccount: seller.stripe_account_id })
+        .catch(() => null),
+    (s) => s === null || s.payment_status === "paid",
+  );
   if (!session || session.metadata?.listing_id !== listing.id || session.payment_status !== "paid") {
     return <NotConfirmed />;
   }
