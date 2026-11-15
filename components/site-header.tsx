@@ -17,7 +17,7 @@ export function SiteHeader() {
           <Link href="/sell">
             <BadgeDollarSign aria-hidden />
             <span className="hidden sm:inline">Get paid with Stripe</span>
-            <span className="sm:hidden">Get paid</span>
+            <span className="sr-only sm:hidden">Get paid with Stripe</span>
           </Link>
         </Button>
         <Button asChild size="lg" className="rounded-md px-3 font-semibold">

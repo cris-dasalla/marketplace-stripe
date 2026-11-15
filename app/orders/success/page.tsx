@@ -1,7 +1,8 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CircleCheck, CircleAlert } from "lucide-react";
+import { CircleAlert, CircleCheck, LoaderCircle } from "lucide-react";
+import { AutoRefresh } from "./auto-refresh";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/payments";
 import { retryUntil } from "@/lib/retry";
@@ -38,10 +39,14 @@ async function Receipt({ searchParams }: { searchParams: SearchParams }) {
         .checkout.sessions.retrieve(sessionId, {}, { stripeAccount: seller.stripe_account_id })
         .catch(() => null),
     (s) => s === null || s.payment_status === "paid",
+    { attempts: 3, delayMs: 1000 },
   );
-  if (!session || session.metadata?.listing_id !== listing.id || session.payment_status !== "paid") {
+  if (!session || session.metadata?.listing_id !== listing.id || session.status === "expired") {
     return <NotConfirmed />;
   }
+  // Direct charges on a connected account can take ~20s to show as paid.
+  // Keep the buyer here and re-check instead of giving up.
+  if (session.payment_status !== "paid") return <Finalizing />;
 
   // The webhook normally records the order first; this is an idempotent backstop
   // in case the buyer lands here before Stripe's event arrives.
@@ -98,6 +103,20 @@ function Row({ label, value, strong, mono }: { label: string; value: string; str
     <div className="flex justify-between gap-4 py-2">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className={`${strong ? "font-bold" : ""} ${mono ? "font-mono text-sm" : ""}`}>{value}</dd>
+    </div>
+  );
+}
+
+function Finalizing() {
+  return (
+    <div role="status" className="rounded-xl bg-white p-6 text-center shadow-[0_1px_2px_rgb(0_0_0/0.1)]">
+      <LoaderCircle className="mx-auto size-10 animate-spin text-primary motion-reduce:animate-none" aria-hidden />
+      <h1 className="mt-3 text-[22px] font-bold">Finalizing your payment…</h1>
+      <p className="mt-1 text-muted-foreground">
+        Stripe is confirming the payment with the seller&apos;s account. This page updates by itself, usually within
+        30 seconds.
+      </p>
+      <AutoRefresh />
     </div>
   );
 }
